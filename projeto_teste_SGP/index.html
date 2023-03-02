@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Empresa X</title>
+  
+  <link rel="stylesheet" href="https://kendo.cdn.telerik.com/2023.1.117/styles/kendo.default-ocean-blue.min.css" />
+  <script src="https://kendo.cdn.telerik.com/2023.1.117/js/jquery.min.js"></script>
+  <script src="https://kendo.cdn.telerik.com/2023.1.117/js/kendo.all.min.js"></script>
+  <link rel="stylesheet" href="style/site.css">
+  <link rel="stylesheet" href="../kendo/styles/kendo.classic-main.min.css">
+  <link rel="stylesheet" href="../kendo/styles/kendo.bootstrap-main.min.css">
+
+  <script src="../kendo/js/jquery.min.js"></script>
+  <script src="../kendo/js/kendo.all.min.js"></script>
+  <script src="https://unpkg.com/ag-grid-community@26.2.1/dist/ag-grid-community.min.js"></script>
+  <script src="https://unpkg.com/papaparse@5.3.0/papaparse.min.js"></script>
+  <script src="https://unpkg.com/faker@5.5.3/dist/faker.min.js"></script>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+</head>
+<body style="margin:0px; background-color: #dbdbdb;">
+  <nav class="navbar navbar-light bg-light nav-empresa-x">
+    <div class="container">
+      <a class="navbar-brand" href="#">Empresa X</a>
+    </div>
+  </nav>
+  <div class="container" style="margin-top: 3rem;">
+    <div class="row">
+      <div class="col-12">
+        <div class="card card-empresa-x">
+          <div class="card-header card-header-empresa-x">
+            <h3 class="title-card-header-empresa-x">Relatório</h3>
+            <span class="subtitle-card-header-empresa-x">Neste relatório são apresentados todos os projetos da empresa X</span>
+          </div>
+          <div class="card-body">
+            <div id="grid"></div>
+            <div id="dialog"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+<script>
+
+function dadosBase(){
+    var testData = [
+      {ID: 1, Name: "Construção", Status: 1, StartDate: "21/12/23", EstimatedCost: 1000.5}, 
+    ];
+    localStorage["planilha"] = JSON.stringify(testData);
+}
+
+//funcao responsavel por resetar a grid
+function reset(){
+    dadosBase();
+    $("#grid").data("kendoGrid").dataSource.read();
+}
+
+$(document).ready(function () {
+    if(localStorage["planilha"] == undefined){
+        dadosBase();
+    }
+
+    var dataSource = new kendo.data.DataSource({
+        transport: {
+          create: function(options){
+            var localData = JSON.parse(localStorage["planilha"]);
+            options.data.ID = localData.length != 0 ? [localData.length-1].ID + 1 : 1;
+            options.data.StartDate = converterDataParaSalvar(options.data.StartDate); //converto a data para o formato dd/mm/aa
+            options.data.Status = parseInt(options.data.Status);  //salvo o id
+            localData.push(options.data);
+            localStorage["planilha"] = JSON.stringify(localData);
+            options.data.StartDate = converterDataParaLer(options.data.StartDate); //converto a data para o formato dd/mm/aa
+            options.data.Status = converteStatusParaLer(parseInt(options.data.Status)); //converto o status do id para o nome
+            options.success(options.data);
+          },
+          read: function(options){
+              var localData = JSON.parse(localStorage["planilha"]);
+              localData.map(e =>{
+                e.StartDate = converterDataParaLer(e.StartDate);
+                e.Status = converteStatusParaLer(e.Status);
+              })
+              options.success(localData);
+          },
+          update: function(options){
+            var localData = JSON.parse(localStorage["planilha"]);
+            for(var i=0; i<localData.length; i++){
+                if(localData[i].ID == options.data.ID){
+                    localData[i].Name = options.data.Name;
+                    localData[i].Status = parseInt(options.data.Status);
+                    localData[i].StartDate = converterDataParaSalvar(options.data.StartDate); //converto a data para o formato dd/mm/aa
+                    localData[i].EstimatedCost = options.data.EstimatedCost;
+                }
+            }
+            localStorage["planilha"] = JSON.stringify(localData);
+            options.data.Status = converteStatusParaLer(parseInt(options.data.Status)); //converto o status do id para o nome
+            options.success(options.data);
+          },
+          destroy: function(options){
+            var localData = JSON.parse(localStorage["planilha"]);
+            for(var i=0; i<localData.length; i++){
+                if(localData[i].ID === options.data.ID){
+                    localData.splice(i,1);
+                    break;
+                }
+            }
+            localStorage["planilha"] = JSON.stringify(localData);
+            options.success(localData);
+          },
+        },
+        schema: {
+          model: {
+            id: "ID",
+            fields: {
+              ID: { type: "number", editable: false },
+              Name: { type: "string", validation: { required: true, min:3, max:30} },
+              Status: { type: "string", validation: { required: true}  },
+              StartDate: { type: "date",format: "{0: dd/MM/yy}", validation: { required: true} },
+              EstimatedCost:  { type: "number", format:"{0:c2}", validation: { required: true, min: 0}},
+            }}
+        },
+        pageSize: 50
+    });
+
+    var grid = $("#grid").kendoGrid({
+        dataSource: dataSource,
+        pageable: true,
+        height: 500,
+        toolbar: [{name:"create", text: "Adicionar um novo registro"}, {name:"save", text: "Salvar as modificações"}, {name:"cancel", text: "Cancelar as modificações"}],
+        columns: [
+          { title:"Nome", field: "Name", width:"220px"},
+          { title:"Status", field: "Status", width: "140px",  editor: statusEditor,},
+          { title:"Data de início", field: "StartDate", width: "100px", format: "{0: dd/MM/yy}"},
+          { title:"Estimativa de custo (R$)", field: "EstimatedCost", width: "130px",},
+          { title:"Ações",command: [{name:"edit", text: "Editar"}, {name:"destroy", text: "Deletar"}],width: "200px" }
+        ],
+        editable: "popup",
+    }).data("kendoGrid");
+
+    function statusEditor(container, options) {
+      var selOptions = `
+        <option value="1">Em Planejamento</option>
+        <option value="2">Em Progresso</option>
+        <option value="3">Finalizado</option>
+        `;
+      var input = $("<select name="+options.field+">"+selOptions+"</select>");
+      input.appendTo(container);
+      input.kendoComboBox();
+      }
+});
+</script>
+<script>
+    var dialog = $('#dialog'),
+        undo = $("#undo");
+
+     //converto a data para salvar
+    function converterDataParaSalvar(dado) {
+      let data = new Date(dado).toLocaleDateString('pt-br').toString().split("/"); //dd,mm,yyyy
+      let dia = data[0];
+      let mes = data[1];
+      let ano = data[2].slice(2); 
+      let dataBr = dia+"/"+mes+"/"+ano;
+      return dataBr;
+    }
+     //converto a data para para ler
+    function converterDataParaLer(dado) {
+      let dataArr = dado.split("/");
+      let dia = dataArr[0];
+      let mes = dataArr[1];
+      let ano = dataArr[2];
+      let dataEn = new Date(1000+ano+"/"+mes+"/"+dia);
+      return dataEn;
+    }
+    //converto o status do id para o nome
+    function converteStatusParaLer(dado) {
+        let status = "";
+        let statusLista = [{
+                "StatusID": 1,
+                "StatusName": "Em Planejamento"
+            }, {
+                "StatusID": 2,
+                "StatusName": "Em Progresso"
+            }, {
+                "StatusID": 3,
+                "StatusName": "Finalizado"
+        }];
+        statusLista.map(e=>{ 
+            if(e.StatusID === dado){
+                status =  e.StatusName;
+            }
+        });
+        return status;
+    }
+    var gridElement = $("#grid");
+    // funcao responsavel por cuida da responsividade da grid
+    function resizeGrid() {
+        gridElement.data("kendoGrid").resize();
+
+        var newHeight = gridElement.height();
+
+        var headerHeight = $(".k-grid-header").height();
+        var pagerHeight = $(".k-grid-pager").height();
+        var rowHeight = $("#grid tr:last").height();
+
+        var numberOfRows = Math.round((newHeight - headerHeight - pagerHeight) / rowHeight);
+
+        gridElement.data("kendoGrid").dataSource.pageSize(numberOfRows);
+        gridElement.data("kendoGrid").refresh();
+    }
+    $(window).resize(function() {
+        resizeGrid();
+    });
+</script>
+</body>
+</html>
